@@ -1,0 +1,154 @@
+---
+title: "Homework 4 DB"
+author: "Derek Bornath"
+date: "02/03/2020"
+output: html_document
+---
+
+##1)Read on Wikipedia about Data Dredging 
+
+##2)Read in titanic data set, and hypothesis which variables might impact survival. Provide justification for each one and choose at least 5 that can be be supported.
+```{r}
+titanic.survival=read_csv("titanic.csv")
+```
+#Variables that might effect survival rate: (1) "pclass" as those who were of higher financial standing may have rooms higher to the top of the boat providing more time to get off and not flooded rooms. (2) "age" as those who are of a young or middle aged adult could move quicker to the life boats and survive. (3) "parch" as parents might have gone back for their children and unfortunately jeopardized thier own safety attempting to save their children. (4) "sibsp" as siblings or spouses may have gone back to save their family member and risked their own safety. (5) "gender" as there are differences in lung volume allowing for holding breathe under water or strength when removing obstacles in ones path to the exit.
+
+
+##3)Create some plots to examine the relationship between your predictor variables and the response (survival).
+#download required library for plots
+```{r}
+library(popbio)
+library(vcd)
+```
+
+#hypothesis 1 pclass vs survival
+
+```{r}
+titanic.survival.nona=na.omit(data.frame("socialclass"=titanic.survival$pclass,"survivalrate"=titanic.survival$survived))
+logi.hist.plot(titanic.survival.nona$socialclass,titanic.survival.nona$survivalrate,boxp=FALSE, type ="hist", col="gray", xlabel="Class")
+```
+
+#hypothesis 2 age vs survival
+```{r}
+titanic.survival.nona2=na.omit(data.frame("currentage"=titanic.survival$age, "survivalrate"=titanic.survival$survived))
+logi.hist.plot(titanic.survival.nona2$currentage,titanic.survival.nona2$survivalrate, boxp = FALSE, type="hist", col="gray", xlabel="age")
+```
+
+#hypothesis 3 parch vs Survival
+```{r}
+titanic.survival.nona3=na.omit(data.frame("parents.children"=titanic.survival$parch, "survivalrate"=titanic.survival$survived))
+logi.hist.plot(titanic.survival.nona3$parents.children, titanic.survival.nona3$survivalrate, boxp=FALSE, type="hist", col="gray", xlabel="number of parents/children")
+```
+
+#hypothesis 4 sibsp vs survival
+```{r}
+titanic.survival.nona4=na.omit(data.frame("siblings.spouse"=titanic.survival$sibsp, "survivalrate"=titanic.survival$survived))
+logi.hist.plot(titanic.survival.nona4$siblings.spouse,titanic.survival.nona4$survivalrate, boxp = FALSE, type="hist", col="gray", xlabel = "number of siblings/spouses")
+```
+
+#hypothesis 5 gender vs survival
+```{r}
+titanic.survival.nona5=na.omit(data.frame("biologicalsex"=titanic.survival$Gender, "survivalrate"=titanic.survival$survived))
+logi.hist.plot(titanic.survival.nona5$biologicalsex,titanic.survival.nona5$survivalrate, boxp = FALSE, type="hist", col="gray", xlabel = "Sex")
+```
+
+
+##4)Decide which variables to include in final model.
+```{r}
+library(bestglm)
+library(leaps)
+```
+
+#Use the bestglm function to identify the variables that lead to the best (lowest) AIC.
+```{r}
+titanic.variables=data.frame("socialclass"=titanic.survival$pclass, "age"=titanic.survival$age, "parents.children"=titanic.survival$parch, "siblings.spouse"=titanic.survival$sibsp, "biological.sex"=titanic.survival$Gender, "survivalrate"=titanic.survival$survived)
+titanic.variables.nona=na.omit(titanic.variables)
+bestglm(titanic.variables.nona,IC="AIC", family=binomial)
+```
+
+##5)Run a logistic regression using the best model selected by the best glm function. Provide summary output.
+```{r}
+titanic.model1=glm(survivalrate~biological.sex+socialclass+siblings.spouse+age, data=titanic.variables.nona)
+summary(titanic.model1)
+```
+
+##6) See if we can create a better model via purposeful selection. First do univariate regressions for each predictor hypothesized. Anything less than 0.25 can be inluded in the full model. If it comes out not sig. in full model, try dropping it and comparing the reduced model to the full model using lrtest fx in lmtest package.
+```{r}
+univariate.socialclass=glm(survivalrate~socialclass, data=titanic.variables.nona, family=binomial(link="logit"))
+univariate.age=glm(survivalrate~age,data=titanic.variables.nona, family=binomial(link="logit"))
+univariate.parents.children=glm(survivalrate~parents.children, data=titanic.variables.nona, family=binomial(link="logit"))
+univariate.siblings.spouse=glm(survivalrate~siblings.spouse, data=titanic.variables.nona, family=binomial (link="logit"))
+univariate.biological.sex=glm(survivalrate~biological.sex, data=titanic.variables.nona, family=binomial (link="logit"))
+summary(univariate.socialclass)
+summary(univariate.age)
+summary(univariate.parents.children)
+summary(univariate.siblings.spouse)
+summary(univariate.biological.sex)
+```
+
+#Running model with univariate variables significant at p<0.25.
+```{r}
+titanic.model2=glm(survivalrate~socialclass+age+parents.children+biological.sex, data=titanic.variables.nona, family=binomial(link="logit"))
+summary(titanic.model2)
+
+```
+
+##7) Yes the manual selection model differed from the automated selection model as 'parents.children' as a variable was removed in the automatic selection model, but left in during the manual selection model and the variable 'siblings.spouse' was left in for the automated selection, but removed during the manual selection model. In addition, there is a lower overall AIC for the manual selection model.
+
+##8)Use the allEffects function to determine the effects of each predictor variable in the best model. Were all effects in the direction you expected?
+```{r}
+library(effects)
+library(carData)
+plot(allEffects(titanic.model1))
+```
+#I used my automated selection model, which indictated that the results in terms of social class relationship are what I would expect due to their cabins being higher up on the boat. THe results with age are also as expected as the older the individual the less likely they were able to survive the sinking of the boat. As for the siblings/spouse effect I am not suprised with the trend of the plot as there is a decrease in survival rate with an increased number of siblings/spouse they may be more inclined to risk their own well being for their offspring or parents. Lastly, I was surprised that females had a great survival rate versus males, I am not certain why there is this difference between the sexes, however it could partly be attributed males being more likely to partake in risk taking behaviour, potentially to save someone, endangering themselves as result.
+
+##9)Complete regression diagnostics. Complete diagnostics under the example code for question 9. In addition, you can type print(model1) and get a series of four plots that examine regression assumptions.
+#Residuals plot to check for linearity
+```{r}
+library(car)
+residualPlot(titanic.model1)
+```
+
+#Bonferroni test for studentized residuals
+```{r}
+outlierTest(titanic.model1)
+```
+
+#Testing for leverage.
+```{r}
+influenceIndexPlot(titanic.model1, id.n=3)
+```
+
+#testing for influential observations
+```{r}
+influencePlot(titanic.model1)
+```
+
+#Examining relationships between predictors. Is there multicollinearity?
+```{r}
+vif(titanic.model1)
+```
+
+##10) There is linearity amongst the residuals so the first assumption is not violated. When analyzing the leverage plot and influence plot, there are 5 individuals whose values dictate the outcome of significance so they could be removed due to being outliers. As for the last assumption, since the CookD numbers are lower than 4 this warrants no further investigation, as it does not violate multicollinearity assumptions
+
+##11)Check the model using k-fold cross validation. The example code is for 10-fold cross validation. It will divide the dataset randomly into 10 parts and then use each of the 10 datasets to test the model trained on the other nine datasets.
+```{r}
+library(caret)
+library(lattice)
+library(ggplot2)
+CTRL=trainControl(method="repeatedcv", number=10, savePredictions = TRUE)
+titanic.variables.nona$survivalrate=as.factor(titanic.variables.nona$survivalrate)
+train(survivalrate~socialclass+siblings.spouse+age+biological.sex, data=titanic.variables.nona,method="glm", family=binomial(link="logit"), trControl=CTRL, tuneLength=5)
+
+```
+
+##12)Based on my model there was a 78% accuracy in predicting whether people would survive the titanic sinking.
+
+##13)Create a confusion matrix similar to the one discussed in class. What was the accuracy of your model according to this analysis?
+```{r}
+predictions=predict(titanic.model1, newdata = titanic.variables.nona, type= "response")
+confusionMatrix(data=as.factor(as.numeric(predictions>0.5)),reference=titanic.variables.nona$survivalrate)
+```
+
+##14 There is a slightly greater accuracy with the confusion matrix compared to the k-fold generalized linear model likely due to the confusion matrix taking into account a combination of all 5 potential variables and deterining which predictors of survival are of greater importance on its own compared to the k-fold generalized linear model basing its comparison off of the automated model produced above.
